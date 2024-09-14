@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/fsnotify/fsnotify"
-    "github.com/juniorsundar/neorg_roamio/logger"
-    "github.com/juniorsundar/neorg_roamio/dir_watcher"
+	"github.com/juniorsundar/neorg_roamio/dir_watcher"
+	"github.com/juniorsundar/neorg_roamio/logger"
 )
 
 func main() {

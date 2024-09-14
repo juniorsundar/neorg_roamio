@@ -1,11 +1,11 @@
 package dir_watcher
 
-import(
-    "os"
-    "path/filepath"
+import (
+	"os"
+	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
-    "github.com/juniorsundar/neorg_roamio/logger"
+	"github.com/juniorsundar/neorg_roamio/logger"
 )
 
 // Initialise watcher for subdirectories recursively.
@@ -81,4 +81,3 @@ func DirWatcher(watcher *fsnotify.Watcher, verbose bool) {
 		}
 	}
 }
-

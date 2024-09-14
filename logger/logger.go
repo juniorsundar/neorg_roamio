@@ -1,9 +1,9 @@
 package logger
 
 import (
-    "fmt"
-    "log"
-    "os"
+	"fmt"
+	"log"
+	"os"
 )
 
 // Creating custom coloured loggers
@@ -39,4 +39,3 @@ func InitLoggers(noColorCoding bool) {
 	LogWarn = log.New(os.Stdout, warnPrefix, log.LstdFlags)
 	LogInfo = log.New(os.Stdout, infoPrefix, log.LstdFlags)
 }
-
