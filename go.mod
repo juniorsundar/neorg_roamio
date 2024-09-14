@@ -1,4 +1,4 @@
-module github.com/juniorsundar/neorg-roamio
+module github.com/juniorsundar/neorg_roamio
 
 go 1.22.3
 
