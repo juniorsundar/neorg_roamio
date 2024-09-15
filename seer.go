@@ -100,6 +100,8 @@ func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
 	for _, folder := range watchedFolders {
 		go func(folder string, extension string, wg *sync.WaitGroup) {
 			defer wg.Done()
+            dirPath := strings.Split(folder, "/")
+            wsRelativeFolder := strings.Join(dirPath[len(strings.Split(workspaceRoot, "/")):], "/")
 
 			dirList, err := os.ReadDir(folder)
 			if err != nil {
@@ -110,7 +112,7 @@ func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
 			for _, file := range dirList {
 				stringSplit := strings.Split(file.Name(), ".")
 				if len(stringSplit) > 1 && stringSplit[1] == "norg" {
-					fullPath := filepath.Join(folder, file.Name())
+					fullPath := filepath.Join(wsRelativeFolder, file.Name())
 					fileStringList = append(fileStringList, fullPath)
 				}
 			}

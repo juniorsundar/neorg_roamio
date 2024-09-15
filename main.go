@@ -11,12 +11,20 @@ import (
 
 func main() {
 
+    // --------------------
+
 	dirPtr := flag.String("dir", ".", "Roam directory address.")
 	portPtr := flag.String("port", "8080", "Roam server port.")
 	verbosePtr := flag.Bool("verbose", false, "Enable verbose logging.")
 	noColorPtr := flag.Bool("no-color", false, "Disable colored output during logging.")
 
 	flag.Parse()
+
+    // --------------------
+
+
+    workspaceRoot = *dirPtr
+    fmt.Println(workspaceRoot, *dirPtr)
 
 	// call initLoggers for use
 	logger.InitLoggers(*noColorPtr)
@@ -44,11 +52,11 @@ func main() {
 	}
 	defer watcher.Close()
 
-	err = addWatchDirRecursively(watcher, *dirPtr)
+	err = addWatchDirRecursively(watcher, workspaceRoot)
 	if err != nil {
 		logger.LogErr.Fatalln(err)
 	}
-	logger.LogWarn.Printf("Watching: %s", *dirPtr)
+	logger.LogWarn.Printf("Watching: %s", workspaceRoot)
 	go dirWatcher(watcher, *verbosePtr)
 
     listFilesRecursively(watcher, ".norg")
