@@ -1,19 +1,28 @@
-package dir_watcher
+package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/juniorsundar/neorg_roamio/logger"
 )
 
+var (
+	mu            sync.Mutex
+	fileList      []string
+	workspaceRoot string
+)
+
 // Initialise watcher for subdirectories recursively.
 //
-// @param watcher: Main `watcher` from main loop.
+// @param watcher: Directory watcher in play.
 //
 // @param dir: Root directory as source of recursive search.
-func AddWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
+func addWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -40,7 +49,7 @@ func AddWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
 // @param watcher: Directory watcher in play.
 //
 // @param verbose: Verbosity flag.
-func DirWatcher(watcher *fsnotify.Watcher, verbose bool) {
+func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
 	for {
 		// Select is like Switch in that it observes what comes out of the
 		// channels. In this case, the two channels of interest are
@@ -59,7 +68,7 @@ func DirWatcher(watcher *fsnotify.Watcher, verbose bool) {
 
 			if event.Op&fsnotify.Create == fsnotify.Create {
 				if err == nil && file.IsDir() {
-					err = AddWatchDirRecursively(watcher, event.Name)
+					err = addWatchDirRecursively(watcher, event.Name)
 					if err != nil {
 						logger.LogErr.Fatalln(err)
 					}
@@ -80,4 +89,40 @@ func DirWatcher(watcher *fsnotify.Watcher, verbose bool) {
 			logger.LogErr.Println(err)
 		}
 	}
+}
+
+func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
+	watchedFolders := watcher.WatchList()
+
+	var wg sync.WaitGroup
+	wg.Add(len(watchedFolders))
+
+	for _, folder := range watchedFolders {
+		go func(folder string, extension string, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			dirList, err := os.ReadDir(folder)
+			if err != nil {
+				logger.LogErr.Fatalf("Directory doesn't exist.")
+			}
+
+			var fileStringList []string
+			for _, file := range dirList {
+				stringSplit := strings.Split(file.Name(), ".")
+				if len(stringSplit) > 1 && stringSplit[1] == "norg" {
+					fullPath := filepath.Join(folder, file.Name())
+					fileStringList = append(fileStringList, fullPath)
+				}
+			}
+
+			mu.Lock()
+			fileList = append(fileList, fileStringList...)
+			mu.Unlock()
+
+		}(folder, extension, &wg)
+	}
+
+	wg.Wait()
+	fmt.Println(fileList)
+	return nil
 }

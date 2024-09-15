@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/juniorsundar/neorg_roamio/dir_watcher"
 	"github.com/juniorsundar/neorg_roamio/logger"
 )
 
@@ -22,12 +21,12 @@ func main() {
 	// call initLoggers for use
 	logger.InitLoggers(*noColorPtr)
 
+    // validate roamio initialisation
 	if *verbosePtr {
 		flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tVerbose: %t\n\tANSI Colors: %t\n",
 			*dirPtr, *portPtr, *verbosePtr, *noColorPtr)
 		logger.LogInfo.Println(flagString)
 	}
-
 	info, err := os.Stat(*dirPtr)
 	if os.IsNotExist(err) {
 		logger.LogErr.Fatalf("Directory %s does not exist.", *dirPtr)
@@ -38,18 +37,20 @@ func main() {
 		logger.LogErr.Fatalf("%s is not a directory", *dirPtr)
 	}
 
+    // initialise dir_watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.LogErr.Fatalln("Something went wrong in creating watcher.")
 	}
 	defer watcher.Close()
 
-	err = dir_watcher.AddWatchDirRecursively(watcher, *dirPtr)
+	err = addWatchDirRecursively(watcher, *dirPtr)
 	if err != nil {
 		logger.LogErr.Fatalln(err)
 	}
 	logger.LogWarn.Printf("Watching: %s", *dirPtr)
+	go dirWatcher(watcher, *verbosePtr)
 
-	go dir_watcher.DirWatcher(watcher, *verbosePtr)
+    listFilesRecursively(watcher, ".norg")
 	<-make(chan struct{})
 }
