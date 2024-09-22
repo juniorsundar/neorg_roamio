@@ -11,7 +11,7 @@ import (
 
 func main() {
 
-    // --------------------
+	// --------------------
 
 	dirPtr := flag.String("dir", ".", "Roam directory address.")
 	portPtr := flag.String("port", "8080", "Roam server port.")
@@ -20,16 +20,15 @@ func main() {
 
 	flag.Parse()
 
-    // --------------------
+	// --------------------
 
-
-    workspaceRoot = *dirPtr
-    fmt.Println(workspaceRoot, *dirPtr)
+	workspaceRoot = *dirPtr
+	fmt.Println(workspaceRoot, *dirPtr)
 
 	// call initLoggers for use
 	logger.InitLoggers(*noColorPtr)
 
-    // validate roamio initialisation
+	// validate roamio initialisation
 	if *verbosePtr {
 		flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tVerbose: %t\n\tANSI Colors: %t\n",
 			*dirPtr, *portPtr, *verbosePtr, *noColorPtr)
@@ -45,7 +44,7 @@ func main() {
 		logger.LogErr.Fatalf("%s is not a directory", *dirPtr)
 	}
 
-    // initialise dir_watcher
+	// initialise dir_watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.LogErr.Fatalln("Something went wrong in creating watcher.")
@@ -59,6 +58,6 @@ func main() {
 	logger.LogWarn.Printf("Watching: %s", workspaceRoot)
 	go dirWatcher(watcher, *verbosePtr)
 
-    listFilesRecursively(watcher, ".norg")
+	listFilesRecursively(watcher, ".norg")
 	<-make(chan struct{})
 }

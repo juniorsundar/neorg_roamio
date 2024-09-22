@@ -19,9 +19,9 @@ var (
 
 // Initialise watcher for subdirectories recursively.
 //
-// @param watcher: Directory watcher in play.
-//
-// @param dir: Root directory as source of recursive search.
+// Parameters:
+//   - watcher: Directory watcher in play.
+//   - dir: Root directory as source of recursive search.
 func addWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -44,11 +44,11 @@ func addWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
 	})
 }
 
-// Routine function to observe the assigned directory for changes
+// Routine function to observe the assigned directory for changes.
 //
-// @param watcher: Directory watcher in play.
-//
-// @param verbose: Verbosity flag.
+// Parameters:
+//   - watcher: Directory watcher in play.
+//   - verbose: Verbosity flag.
 func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
 	for {
 		// Select is like Switch in that it observes what comes out of the
@@ -100,8 +100,8 @@ func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
 	for _, folder := range watchedFolders {
 		go func(folder string, extension string, wg *sync.WaitGroup) {
 			defer wg.Done()
-            dirPath := strings.Split(folder, "/")
-            wsRelativeFolder := strings.Join(dirPath[len(strings.Split(workspaceRoot, "/")):], "/")
+			dirPath := strings.Split(folder, "/")
+			wsRelativeFolder := strings.Join(dirPath[len(strings.Split(workspaceRoot, "/")):], "/")
 
 			dirList, err := os.ReadDir(folder)
 			if err != nil {
