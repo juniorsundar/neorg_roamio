@@ -1,7 +1,6 @@
 package main
 
 import (
-    "fmt"
     "os"
     "path/filepath"
     "strings"
@@ -48,8 +47,7 @@ func addWatchDirRecursively(watcher *fsnotify.Watcher, dir string) error {
 //
 // Parameters:
 //   - watcher: Directory watcher in play.
-//   - verbose: Verbosity flag.
-func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
+func dirWatcher(watcher *fsnotify.Watcher) {
     for {
         // Select is like Switch in that it observes what comes out of the
         // channels. In this case, the two channels of interest are
@@ -63,9 +61,7 @@ func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
             file, err := os.Stat(event.Name)
 
             if event.Op&fsnotify.Create == fsnotify.Create {
-                if verbose {
-                    logger.LogInfo.Printf("Created %s", event.Name)
-                }
+                logger.LogInfo.Printf("Created %s", event.Name)
                 if err == nil && file.IsDir() {
                     err = addWatchDirRecursively(watcher, event.Name)
                     if err != nil {
@@ -77,18 +73,14 @@ func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
             if event.Op&fsnotify.Remove == fsnotify.Remove {
                 if os.IsNotExist(err) {
                     watcher.Remove(event.Name)
-                    if verbose {
-                        logger.LogWarn.Printf("Removed %s", event.Name)
-                    }
+                    logger.LogWarn.Printf("Removed %s", event.Name)
                 }
             }
 
             if event.Op&fsnotify.Rename == fsnotify.Rename {
                 if os.IsNotExist(err) {
                     watcher.Remove(event.Name)
-                    if verbose {
-                        logger.LogWarn.Printf("Renamed %s", event.Name)
-                    }
+                    logger.LogWarn.Printf("Renamed %s", event.Name)
                 }
             }
         case err, ok := <-watcher.Errors:
@@ -100,7 +92,12 @@ func dirWatcher(watcher *fsnotify.Watcher, verbose bool) {
     }
 }
 
-func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
+// Depth traverse watched directories for files
+//
+// Parameters:
+//   - watcher: Directory watcher in play
+//   - extension: Filetype we are interested in listing
+func listFilesRecursively(watcher *fsnotify.Watcher, extension string) []string {
     watchedFolders := watcher.WatchList()
 
     var wg sync.WaitGroup
@@ -134,6 +131,5 @@ func listFilesRecursively(watcher *fsnotify.Watcher, extension string) error {
     }
 
     wg.Wait()
-    fmt.Println(fileList)
-    return nil
+    return fileList
 }

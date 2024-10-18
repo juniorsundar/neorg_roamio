@@ -15,7 +15,6 @@ func main() {
 
 	dirPtr := flag.String("dir", ".", "Roam directory address.")
 	portPtr := flag.String("port", "8080", "Roam server port.")
-	verbosePtr := flag.Bool("verbose", false, "Enable verbose logging.")
 	noColorPtr := flag.Bool("no-color", false, "Disable colored output during logging.")
 
 	flag.Parse()
@@ -23,18 +22,17 @@ func main() {
 	// --------------------
 
 	workspaceRoot = *dirPtr
-	fmt.Println(workspaceRoot, *dirPtr)
 
 	// call initLoggers for use
 	logger.InitLoggers(*noColorPtr)
 
 	// validate roamio initialisation
-	if *verbosePtr {
-		flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tVerbose: %t\n\tANSI Colors: %t\n",
-			*dirPtr, *portPtr, *verbosePtr, *noColorPtr)
-		logger.LogInfo.Println(flagString)
-	}
-	info, err := os.Stat(*dirPtr)
+	flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tANSI Colors: %t\n",
+		*dirPtr, *portPtr, *noColorPtr)
+	logger.LogInfo.Println(flagString)
+
+	// Check if workspace exists
+	info, err := os.Stat(workspaceRoot)
 	if os.IsNotExist(err) {
 		logger.LogErr.Fatalf("Directory %s does not exist.", *dirPtr)
 	} else if os.IsPermission(err) {
@@ -56,8 +54,23 @@ func main() {
 		logger.LogErr.Fatalln(err)
 	}
 	logger.LogWarn.Printf("Watching: %s", workspaceRoot)
-	go dirWatcher(watcher, *verbosePtr)
+	go dirWatcher(watcher)
+	relativeFileList := listFilesRecursively(watcher, ".norg")
 
-	listFilesRecursively(watcher, ".norg")
+	// Verify if Cache exists
+	if cacheExists(workspaceRoot) {
+		// invalidate if exists
+		err := invalidateCache(workspaceRoot, relativeFileList)
+		if err != nil {
+			logger.LogErr.Fatalln(err)
+		}
+	} else {
+		// build cache if not
+		err := buildCache()
+		if err != nil {
+			logger.LogErr.Fatalln(err)
+		}
+	}
+
 	<-make(chan struct{})
 }
