@@ -8,12 +8,12 @@ import (
 
     "github.com/fsnotify/fsnotify"
     "github.com/juniorsundar/neorg_roamio/logger"
+    "github.com/juniorsundar/neorg_roamio/local"
 )
 
 var (
     mu            sync.Mutex
     fileList      []string
-    workspaceRoot string
 )
 
 // Initialise watcher for subdirectories recursively.
@@ -107,7 +107,7 @@ func listFilesRecursively(watcher *fsnotify.Watcher, extension string) []string 
         go func(folder string, extension string, wg *sync.WaitGroup) {
             defer wg.Done()
             dirPath := strings.Split(folder, "/")
-            wsRelativeFolder := strings.Join(dirPath[len(strings.Split(workspaceRoot, "/")):], "/")
+            wsRelativeFolder := strings.Join(dirPath[len(strings.Split(local.ConfigData.Workspace.Root, "/")):], "/")
 
             dirList, err := os.ReadDir(folder)
             if err != nil {

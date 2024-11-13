@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	// "path/filepath"
 	"strings"
 
 	"github.com/juniorsundar/neorg_roamio/logger"
+	"github.com/juniorsundar/neorg_roamio/local"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Node struct {
@@ -66,17 +69,17 @@ func extractNorgMetadata(norgFile string) (NorgMeta, error) {
 	return norgMeta, nil
 }
 
-func cacheExists(workspaceRoot string) bool {
-	_, err := os.Stat(workspaceRoot + "/.roamioCache.json")
+func cacheExists() bool {
+	_, err := os.Stat(local.ConfigData.Workspace.Root + "/.roamioCache.json")
 	if os.IsNotExist(err) {
-		logger.LogWarn.Printf("%s file doesn't exist.", workspaceRoot+"/.roamioCache.json")
-		err := os.WriteFile(workspaceRoot+"/.roamioCache.json", []byte(""), 0666)
+		logger.LogWarn.Printf("%s file doesn't exist.", local.ConfigData.Workspace.Root+"/.roamioCache.json")
+		err := os.WriteFile(local.ConfigData.Workspace.Root+"/.roamioCache.json", []byte(""), 0666)
 		if err != nil {
 			logger.LogErr.Println(err)
 		}
 		return false
 	} else {
-		logger.LogInfo.Println("Found file " + workspaceRoot + "/.roamioCache.json")
+		logger.LogInfo.Println("Found file " + local.ConfigData.Workspace.Root + "/.roamioCache.json")
 		return true
 	}
 }
@@ -85,8 +88,8 @@ func buildCache() error {
 	return nil
 }
 
-func invalidateCache(workspaceRoot string, relativeFileList []string) error {
-	cacheFile, err := os.Open(workspaceRoot + "/.roamioCache.json")
+func invalidateCache(relativeFileList []string) error {
+	cacheFile, err := os.Open(local.ConfigData.Workspace.Root + "/.roamioCache.json")
 	if err != nil {
 		return err
 	}
@@ -120,7 +123,7 @@ func invalidateCache(workspaceRoot string, relativeFileList []string) error {
 	for fileNode, notFound := range fileNodeNames {
 		if notFound {
 			logger.LogErr.Printf("Missing %s", fileNode)
-            norgMeta, err := extractNorgMetadata(workspaceRoot+"/"+fileNode)
+            norgMeta, err := extractNorgMetadata(local.ConfigData.Workspace.Root+"/"+fileNode)
             if err != nil {
                 return err
             }
@@ -145,7 +148,7 @@ func invalidateCache(workspaceRoot string, relativeFileList []string) error {
     }
 
     // Write the JSON data to a file
-    err = os.WriteFile(workspaceRoot + "/.roamioCache.json", jsonData, 0644)
+    err = os.WriteFile(local.ConfigData.Workspace.Root + "/.roamioCache.json", jsonData, 0644)
     if err != nil {
         return err
     }

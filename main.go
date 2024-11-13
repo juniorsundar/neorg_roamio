@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/juniorsundar/neorg_roamio/local"
 	"github.com/juniorsundar/neorg_roamio/logger"
 )
 
@@ -13,33 +14,40 @@ func main() {
 
 	// --------------------
 
-	dirPtr := flag.String("dir", ".", "Roam directory address.")
-	portPtr := flag.String("port", "8080", "Roam server port.")
-	noColorPtr := flag.Bool("no-color", false, "Disable colored output during logging.")
+	configFilePtr := flag.String("config", "config", "Get configuration file.")
 
 	flag.Parse()
 
 	// --------------------
 
-	workspaceRoot = *dirPtr
+	configFile := *configFilePtr
+	// call initLoggers for use
+	logger.InitLoggers(false)
+
+	local.GetConfig(configFile)
+	err := local.ParseConfig()
+
+	if err != nil {
+		logger.LogErr.Fatalln("Config file missing root directory.")
+	}
 
 	// call initLoggers for use
-	logger.InitLoggers(*noColorPtr)
+	logger.InitLoggers(local.ConfigData.Logging.Color)
 
 	// validate roamio initialisation
 	flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tANSI Colors: %t\n",
-		*dirPtr, *portPtr, *noColorPtr)
+		local.ConfigData.Workspace.Root, local.ConfigData.Workspace.Port, local.ConfigData.Logging.Color)
 	logger.LogInfo.Println(flagString)
 
 	// Check if workspace exists
-	info, err := os.Stat(workspaceRoot)
+	info, err := os.Stat(local.ConfigData.Workspace.Root)
 	if os.IsNotExist(err) {
-		logger.LogErr.Fatalf("Directory %s does not exist.", *dirPtr)
+		logger.LogErr.Fatalf("Directory %s does not exist.", local.ConfigData.Workspace.Root)
 	} else if os.IsPermission(err) {
-		logger.LogErr.Fatalf("Directory %s does not have edit permission.", *dirPtr)
+		logger.LogErr.Fatalf("Directory %s does not have edit permission.", local.ConfigData.Workspace.Root)
 	}
 	if !info.IsDir() {
-		logger.LogErr.Fatalf("%s is not a directory", *dirPtr)
+		logger.LogErr.Fatalf("%s is not a directory", local.ConfigData.Workspace.Root)
 	}
 
 	// initialise dir_watcher
@@ -49,18 +57,18 @@ func main() {
 	}
 	defer watcher.Close()
 
-	err = addWatchDirRecursively(watcher, workspaceRoot)
+	err = addWatchDirRecursively(watcher, local.ConfigData.Workspace.Root)
 	if err != nil {
 		logger.LogErr.Fatalln(err)
 	}
-	logger.LogWarn.Printf("Watching: %s", workspaceRoot)
+	logger.LogWarn.Printf("Watching: %s", local.ConfigData.Workspace.Root)
 	go dirWatcher(watcher)
 	relativeFileList := listFilesRecursively(watcher, ".norg")
 
 	// Verify if Cache exists
-	if cacheExists(workspaceRoot) {
+	if cacheExists() {
 		// invalidate if exists
-		err := invalidateCache(workspaceRoot, relativeFileList)
+		err := invalidateCache(relativeFileList)
 		if err != nil {
 			logger.LogErr.Fatalln(err)
 		}
