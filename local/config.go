@@ -39,7 +39,9 @@ func GetConfig(configName string) {
 	ConfigPath = filepath.Join(configHome, configName+".yaml")
 	_, err = os.Stat(ConfigPath)
 	if os.IsNotExist(err) {
-		err = os.WriteFile(ConfigPath, []byte(""), 0666)
+        var tempConfig Config
+        data, _ := yaml.Marshal(&tempConfig)
+		err = os.WriteFile(ConfigPath, []byte(data), 0666)
 	}
 }
 
