@@ -22,7 +22,7 @@ func main() {
 
 	configFile := *configFilePtr
 	// call initLoggers for use
-	logger.InitLoggers(false)
+	logger.InitLoggers(false, false)
 
 	local.GetConfig(configFile)
 	err := local.ParseConfig()
@@ -32,11 +32,14 @@ func main() {
 	}
 
 	// call initLoggers for use
-	logger.InitLoggers(local.ConfigData.Logging.Color)
+	logger.InitLoggers(local.ConfigData.Logging.Color, local.ConfigData.Logging.Verbosity)
 
 	// validate roamio initialisation
-	flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tANSI Colors: %t\n",
-		local.ConfigData.Workspace.Root, local.ConfigData.Workspace.Port, local.ConfigData.Logging.Color)
+	flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tANSI Colors: %t\n\tVerbosity: %t\n",
+		local.ConfigData.Workspace.Root,
+		local.ConfigData.Workspace.Port,
+		local.ConfigData.Logging.Color,
+		local.ConfigData.Logging.Verbosity)
 	logger.LogInfo.Println(flagString)
 
 	// Check if workspace exists
