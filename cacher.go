@@ -2,35 +2,35 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
+	"database/sql"
 	"os"
-	// "path/filepath"
+	"path"
 	"strings"
 
-	"github.com/juniorsundar/neorg_roamio/logger"
 	"github.com/juniorsundar/neorg_roamio/local"
+	"github.com/juniorsundar/neorg_roamio/logger"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Node struct {
-	Address string `json:"address"`
-	Line    int    `json:"line"`
-	Title   string `json:"title"`
-	Type    string `json:"type"`
-}
-
-type Cache struct {
-	Nodes map[string]Node `json:"nodes"`
-}
-
 type NorgMeta struct {
 	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Authors     string   `json:"authors"`
+    Description string   `json:"description"`
+    Authors     string   `json:"authors"`
 	Categories  []string `json:"categories"`
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
 	Version     string   `json:"version"`
+}
+
+type Unit struct {
+	Id          string   `json:"id"`
+	Title       string   `json:"title"`
+	Address     string   `json:"address"`
+	Line        int      `json:"line"`
+	Type        string   `json:"type"`
+	Categories  []string `json:"categories"`
+	Created     string   `json:"created"`
+	Description string   `json:"description"`
 }
 
 func extractNorgMetadata(norgFile string) (NorgMeta, error) {
@@ -70,88 +70,125 @@ func extractNorgMetadata(norgFile string) (NorgMeta, error) {
 }
 
 func cacheExists() bool {
-	_, err := os.Stat(local.ConfigData.Workspace.Root + "/.roamioCache.json")
+	local.GetDatabase()
+
+	// Check if the database file exists.
+	_, err := os.Stat(local.DatabasePath)
 	if os.IsNotExist(err) {
-		logger.LogWarn.Printf("%s file doesn't exist.", local.ConfigData.Workspace.Root+"/.roamioCache.json")
-		err := os.WriteFile(local.ConfigData.Workspace.Root+"/.roamioCache.json", []byte(""), 0666)
+		logger.LogWarn.Printf("'%s' database doesn't exist. Creating it.", local.DatabasePath)
+
+		// Create the database file.
+		file, err := os.Create(local.DatabasePath)
 		if err != nil {
-			logger.LogErr.Println(err)
+			logger.LogErr.Printf("Error creating database file: %v", err)
+			return false
 		}
+		file.Close()
+		// Open the database to ensure it's a valid SQLite database
+		db, err := sql.Open("sqlite3", local.DatabasePath)
+		if err != nil {
+			logger.LogErr.Printf("Error opening database: %v", err)
+			return false
+		}
+		defer db.Close()
+
+		return false
+	} else if err != nil {
+		// Handle potential errors from os.Stat
+		logger.LogErr.Printf("Error checking database file: %v", err)
 		return false
 	} else {
-		logger.LogInfo.Println("Found file " + local.ConfigData.Workspace.Root + "/.roamioCache.json")
-		return true
+		logger.LogInfo.Println("Found database " + local.DatabasePath)
 	}
+
+	// Open the database to ensure it's a valid SQLite database
+	db, err := sql.Open("sqlite3", local.DatabasePath)
+	if err != nil {
+		logger.LogErr.Printf("Error opening database: %v", err)
+		return false
+	}
+	defer db.Close()
+
+	return true
 }
 
-func buildCache() error {
+func buildCache(relativeFileList []string) error {
+	db, err := sql.Open("sqlite3", local.DatabasePath)
+	if err != nil {
+		logger.LogErr.Println("Error opening database!")
+		return err
+	}
+	defer db.Close()
+
+	createTableSQL := `
+    CREATE TABLE IF NOT EXISTS nodes (
+    id TEXT PRIMARY KEY,
+    title TEXT,
+    address TEXT,
+    line INTEGER,
+    type TEXT,
+    categories TEXT, 
+    created TEXT,
+    description TEXT
+    );
+    `
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		logger.LogErr.Println("Error creating table!")
+		return err
+	}
+
+	insertSQL := `
+    INSERT INTO nodes (id, title, address, line, type, categories, created, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
+
+	stmt, err := db.Prepare(insertSQL)
+	if err != nil {
+		logger.LogErr.Println("Error preparing SQL statement!")
+		return err
+	}
+	defer stmt.Close()
+
+	for _, relativeFile := range relativeFileList {
+		fullPath := path.Join(local.ConfigData.Workspace.Root, relativeFile)
+
+		norgMeta, err := extractNorgMetadata(fullPath)
+		if err != nil {
+			logger.LogWarn.Printf("Error extracting metadata from %s: %v", fullPath, err)
+			continue
+		}
+
+		entry := Unit{
+			Id:          relativeFile,
+			Title:       norgMeta.Title,
+			Address:     fullPath,
+			Line:        1,
+			Type:        "node",
+			Categories:  norgMeta.Categories,
+			Created:     norgMeta.Created,
+			Description: norgMeta.Description,
+		}
+
+		_, err = stmt.Exec(
+			entry.Id,
+			entry.Title,
+			entry.Address,
+			entry.Line,
+			entry.Type,
+			strings.Join(entry.Categories, ","),
+			entry.Created,
+			entry.Description,
+		)
+
+		if err != nil {
+			logger.LogWarn.Printf("Error inserting data into databas: %v", err)
+			continue
+		}
+	}
 	return nil
 }
 
 func invalidateCache(relativeFileList []string) error {
-	cacheFile, err := os.Open(local.ConfigData.Workspace.Root + "/.roamioCache.json")
-	if err != nil {
-		return err
-	}
-	defer cacheFile.Close()
-
-	// To hold the full JSON structure
-	var result Cache
-
-	decoder := json.NewDecoder(cacheFile)
-	err = decoder.Decode(&result)
-	if err != nil {
-		return err
-	}
-
-	// invalidate file nodes only for the moment
-	// TODO also look at non-files like blocks
-	fileNodeNames := make(map[string]bool)
-	for _, fileNode := range relativeFileList {
-		fileNodeNames[fileNode] = true
-	}
-
-	// Iterate over the nodes in the cache and check against the fileNodeNames map
-	for address, node := range result.Nodes {
-		if node.Type == "file" {
-			if _, exists := fileNodeNames[address]; exists {
-				fileNodeNames[address] = false // Mark as found
-			}
-		}
-	}
-
-	for fileNode, notFound := range fileNodeNames {
-		if notFound {
-			logger.LogErr.Printf("Missing %s", fileNode)
-            norgMeta, err := extractNorgMetadata(local.ConfigData.Workspace.Root+"/"+fileNode)
-            if err != nil {
-                return err
-            }
-
-            newNode := Node{
-                Address: fileNode,
-                Line: 1,
-                Title: norgMeta.Title,
-                Type: "file",
-            }
-            result.Nodes[fileNode] = newNode
-
-		} else {
-			logger.LogWarn.Printf("Found %s", fileNode)
-		}
-	}
-
-    // Marshal the cache struct into JSON
-    jsonData, err := json.MarshalIndent(result, "", "    ") // Pretty print with indentation
-    if err != nil {
-        return err
-    }
-
-    // Write the JSON data to a file
-    err = os.WriteFile(local.ConfigData.Workspace.Root + "/.roamioCache.json", jsonData, 0644)
-    if err != nil {
-        return err
-    }
-
 	return nil
 }

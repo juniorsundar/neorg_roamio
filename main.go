@@ -15,24 +15,23 @@ func main() {
 	// --------------------
 
 	configFilePtr := flag.String("config", "config", "Get configuration file.")
-
 	flag.Parse()
 
-	// --------------------
+    // --------------------
 
-	configFile := *configFilePtr
 	// call initLoggers for use
 	logger.InitLoggers(false, false)
 
-	local.GetConfig(configFile)
+	local.GetConfig(*configFilePtr)
 	err := local.ParseConfig()
-
 	if err != nil {
 		logger.LogErr.Fatalln("Config file missing root directory.")
 	}
 
 	// call initLoggers for use
 	logger.InitLoggers(local.ConfigData.Logging.Color, local.ConfigData.Logging.Verbosity)
+
+	local.GetLocalDir()
 
 	// validate roamio initialisation
 	flagString := fmt.Sprintf("\n\tDirectory: %s\n\tPort: %s\n\tANSI Colors: %t\n\tVerbosity: %t\n",
@@ -77,7 +76,7 @@ func main() {
 		}
 	} else {
 		// build cache if not
-		err := buildCache()
+		err := buildCache(relativeFileList)
 		if err != nil {
 			logger.LogErr.Fatalln(err)
 		}
